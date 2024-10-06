@@ -1,0 +1,90 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>  
+
+
+void servicioMayorDeEdad(char *nombre, int edad, char *respuesta) {
+	if (edad > 18) {
+		char temp[100];
+		sprintf(temp, "%s*%d-", nombre, edad);
+		strcat(respuesta, temp);
+	}
+}
+
+void servicioEsPalindromo(char *nombre, char *respuesta) {
+	int len = strlen(nombre);
+	int es_palindromo = 1;  
+	
+	
+	for (int i = 0; i < len / 2; i++) {
+		if (tolower((unsigned char)nombre[i]) != tolower((unsigned char)nombre[len - i - 1])) {
+			es_palindromo = 0;  // Si encontramos una diferencia, no es palￃﾭndromo
+			break;
+		}
+	}
+	if (es_palindromo) {
+		char temp[100];
+		sprintf(temp, "%s-(paliﾭndromo)-", nombre);
+		strcat(respuesta, temp);
+	}
+}
+
+void servicioNombreEnMayusculas(char *nombre, char *respuesta) {
+	char nombre_mayus[100];
+	int i = 0;
+	
+
+	while (nombre[i]) {
+		
+		nombre_mayus[i] = toupper((unsigned char)nombre[i]);
+		i++;
+	}
+	nombre_mayus[i] = '\0';  
+	
+	
+	strcat(respuesta, nombre_mayus);
+	strcat(respuesta, "-");  
+}
+int main(int argc, char *argv[]) {
+	
+	char peticion[100];
+	char respuestaMayorDeEdad[200] = "";  
+	char respuestaPalindromo[200] = "";   
+	char respuestaMayusculas[200] = "";   
+	
+	strcpy(peticion, "Manolo/89/Anastasia/90/Ruperto/87/Ana/25/Oto/30");
+	
+	char *p = strtok(peticion, "/");
+	char nombre[20];
+	int edad;
+	while (p != NULL) {
+		strcpy(nombre, p);  
+		p = strtok(NULL, "/");  
+		
+		if (p == NULL) {  
+			break;
+		}
+		
+		edad = atoi(p);  
+		
+		
+		servicioMayorDeEdad(nombre, edad, respuestaMayorDeEdad);
+		
+		servicioEsPalindromo(nombre, respuestaPalindromo);
+		
+	
+		servicioNombreEnMayusculas(nombre, respuestaMayusculas);
+		
+		p = strtok(NULL, "/");  
+	}
+	respuestaMayorDeEdad[strlen(respuestaMayorDeEdad)-1] = '\0';
+	respuestaPalindromo[strlen(respuestaPalindromo)-1] = '\0';
+	respuestaMayusculas[strlen(respuestaMayusculas)-1] = '\0';
+	printf("Resultado servicio Mayor de Edad: %s\n", respuestaMayorDeEdad);
+	printf("Resultado servicio Palindromo: %s\n", respuestaPalindromo);
+	printf("Resultado servicio Nombre en Mayusculas: %s\n", respuestaMayusculas);
+	
+	return 0;
+}
+	
