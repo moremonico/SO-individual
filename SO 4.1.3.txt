@@ -1,0 +1,89 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace _4._1_ENTREGABLE
+{
+    public partial class Form1 : Form
+    {
+        Socket server;
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void btnConvertToCelsius_Click(object sender, EventArgs e)
+        {
+            if (float.TryParse(txtTemperature.Text, out float temperature))
+            {
+                ConvertTemperature('F', temperature); // Convertir de Fahrenheit a Celsius
+            }
+            else
+            {
+                MessageBox.Show("Por favor, ingrese un número válido.", "Entrada inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void btnConvertToFahrenheit_Click(object sender, EventArgs e)
+        {
+            if (float.TryParse(txtTemperature.Text, out float temperature))
+            {
+                ConvertTemperature('C', temperature); // Convertir de Celsius a Fahrenheit
+            }
+            else
+            {
+                MessageBox.Show("Por favor, ingrese un número válido.", "Entrada inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void ConvertTemperature(char tipoConversion,float valor)
+        {
+            // Dirección IP del servidor
+          IPAddress direc = IPAddress.Parse("192.168.56.102");
+            IPEndPoint ipep = new IPEndPoint(direc, 9050);
+            server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            try
+            {
+                server.Connect(ipep);
+                this.BackColor = Color.Green;
+
+                // Construir el mensaje
+                string mensaje = $"{tipoConversion}/{valor}";
+                byte[] mensajeEnBytes = Encoding.UTF8.GetBytes(mensaje);
+
+                // Enviar el mensaje al servidor
+                server.Send(mensajeEnBytes);
+
+                // Recibir la respuesta
+                byte[] buffer = new byte[1024];
+                int bytesRecibidos = server.Receive(buffer);
+                string respuesta = Encoding.UTF8.GetString(buffer, 0, bytesRecibidos);
+
+                // Mostrar la respuesta en un  Label
+                lblResult.Text = respuesta; 
+
+                // Cerrar la conexión
+                server.Shutdown(SocketShutdown.Both);
+                server.Close();
+
+            }
+            catch (SocketException ex)
+            {
+                MessageBox.Show($"Error de conexión: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+}
