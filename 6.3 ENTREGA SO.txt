@@ -1,0 +1,221 @@
+SERVIDOR
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <pthread.h>
+
+float servicioCelsiusAFahrenheit(float celsius) {
+    return (celsius * 9.0 / 5.0) + 32.0;
+}
+
+float servicioFahrenheitACelsius(float fahrenheit) {
+    return (fahrenheit - 32.0) * 5.0 / 9.0;
+}
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void *AtenderCliente(void *socket_desc) {
+    int new_socket = *(int*)socket_desc;
+    char buffer[1024] = {0};
+    char respuesta[200] = "";
+    
+    // Leer la petición del cliente
+    int valread = read(new_socket, buffer, 1024);
+    buffer[valread] = '\0';
+    
+    printf("Petición recibida: %s\n", buffer);
+    
+    char *p = strtok(buffer, "/");
+    char tipo_conversion;
+    float valor, resultado;
+    
+    while (p != NULL) {
+        tipo_conversion = p[0];  // Tomamos el primer carácter como el tipo de conversión
+        p = strtok(NULL, "/");    // Obtenemos el valor
+        if (p == NULL) break;
+        
+        valor = atof(p);  // Convertimos a flotante
+        
+        if (tipo_conversion == 'C') {
+            resultado = servicioCelsiusAFahrenheit(valor);
+            char temp[100];
+            sprintf(temp, "%.2f°C = %.2f°F\n", valor, resultado);
+            strcat(respuesta, temp);
+        } else if (tipo_conversion == 'F') {
+            resultado = servicioFahrenheitACelsius(valor);
+            char temp[100];
+            sprintf(temp, "%.2f°F = %.2f°C\n", valor, resultado);
+            strcat(respuesta, temp);
+        }
+        
+        p = strtok(NULL, "/");  // Continuamos procesando la siguiente conversión
+    }
+    
+    // Enviar la respuesta al cliente
+    send(new_socket, respuesta, strlen(respuesta), 0);
+    printf("Respuesta enviada: %s\n", respuesta);
+    
+    close(new_socket);  // Cerramos el socket del cliente
+    free(socket_desc);   // Liberamos la memoria asignada al descriptor de socket
+    pthread_exit(NULL);  // Terminamos el hilo
+}
+
+int main(int argc, char *argv[]) {
+    int server_fd, new_socket, *new_sock;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    
+    // Crear el socket
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Configurar opciones del socket
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Configurar la dirección del servidor
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(9050);
+    
+    // Asignar la dirección al socket
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Escuchar conexiones entrantes
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+    
+    printf("Servidor escuchando en el puerto %d...\n", 9050);
+    
+    while (1) {
+        // Aceptar una nueva conexión
+        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        }
+        
+        printf("Conexión aceptada\n");
+        
+        // Asignar memoria para el nuevo socket y lanzar un hilo para atender al cliente
+        new_sock = malloc(sizeof(int));
+        *new_sock = new_socket;
+        
+        pthread_t thread_id;
+        if (pthread_create(&thread_id, NULL, AtenderCliente, (void*) new_sock) < 0) {
+            perror("pthread_create");
+            exit(EXIT_FAILURE);
+        }
+        
+        pthread_detach(thread_id);  // Hacemos que el hilo se limpie automáticamente cuando termine
+    }
+    
+    return 0;
+}
+
+
+CLIENTE
+
+
+System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace _4._1_ENTREGABLE
+{
+    public partial class Form1 : Form
+    {
+        Socket server;
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void btnConvertToCelsius_Click(object sender, EventArgs e)
+        {
+            if (float.TryParse(txtTemperature.Text, out float temperature))
+            {
+                ConvertTemperature('F', temperature); // Convertir de Fahrenheit a Celsius
+            }
+            else
+            {
+                MessageBox.Show("Por favor, ingrese un número válido.", "Entrada inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void btnConvertToFahrenheit_Click(object sender, EventArgs e)
+        {
+            if (float.TryParse(txtTemperature.Text, out float temperature))
+            {
+                ConvertTemperature('C', temperature); // Convertir de Celsius a Fahrenheit
+            }
+            else
+            {
+                MessageBox.Show("Por favor, ingrese un número válido.", "Entrada inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void ConvertTemperature(char tipoConversion,float valor)
+        {
+            // Dirección IP del servidor
+          IPAddress direc = IPAddress.Parse("192.168.56.102");
+            IPEndPoint ipep = new IPEndPoint(direc, 9050);
+            server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            try
+            {
+                server.Connect(ipep);
+                this.BackColor = Color.Green;
+
+                // Construir el mensaje
+                string mensaje = $"{tipoConversion}/{valor}";
+                byte[] mensajeEnBytes = Encoding.UTF8.GetBytes(mensaje);
+
+                // Enviar el mensaje al servidor
+                server.Send(mensajeEnBytes);
+
+                // Recibir la respuesta
+                byte[] buffer = new byte[1024];
+                int bytesRecibidos = server.Receive(buffer);
+                string respuesta = Encoding.UTF8.GetString(buffer, 0, bytesRecibidos);
+
+                // Mostrar la respuesta en un  Label
+                lblResult.Text = respuesta; 
+
+                // Cerrar la conexión
+                server.Shutdown(SocketShutdown.Both);
+                server.Close();
+
+            }
+            catch (SocketException ex)
+            {
+                MessageBox.Show($"Error de conexión: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
